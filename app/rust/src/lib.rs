@@ -16,7 +16,10 @@ use core::convert::TryInto;
 use core::mem;
 #[cfg(not(test))]
 use core::panic::PanicInfo;
-use sha2::{Digest, Sha256, Sha512Trunc256};
+use core::mem;
+use core::convert::TryInto;
+use crate::bolos::Trng;
+use schnorrkel::{SecretKey, PublicKey};
 
 #[cfg(not(test))]
 #[panic_handler]
@@ -25,55 +28,51 @@ fn panic(_info: &PanicInfo) -> ! {
 }
 
 #[no_mangle]
-pub extern "C" fn rs_sha512_256(
-    input_ptr: *const u8,
-    input_size: usize,
-    output_ptr: *const u8,
-    output_size: usize,
-) -> i8 {
-    if output_size != 32 {
-        return -1;
-    }
+pub extern "C" fn get_sr25519_pk(pk_ptr: *mut u8) {
+    let pkd: &mut [u8; 32] = unsafe { mem::transmute::<*const u8, &mut [u8; 32]>(pk_ptr) };
 
-    let input = unsafe { core::slice::from_raw_parts(input_ptr, input_size as usize) };
-    let output = unsafe { mem::transmute::<*const u8, &mut [u8; 32]>(output_ptr) };
+    let trng = Trng;
+    let secret: SecretKey = SecretKey::generate_with(trng);
+    let public: PublicKey = secret.to_public();
 
-    let mut hasher = Sha512Trunc256::new();
-    hasher.input(input);
-    let result = hasher.result();
-
-    output.copy_from_slice(&result);
-    return 0;
+    pkd.copy_from_slice(&public.to_bytes())
 }
 
 #[cfg(test)]
 mod tests {
-
     use crate::*;
-    use sha2::Sha512Trunc256;
+    use crate::bolos::Trng;
+    use schnorrkel::{Keypair, Signature, SecretKey, PublicKey};
 
-    #[test]
-    fn sha512_256_pure() {
-        let mut hasher = Sha512Trunc256::new();
-        hasher.input(b"Zondax");
-        let result = hasher.result();
+    use log::debug;
 
-        assert_eq!(
-            result[..],
-            hex!("3d119a287af12a4a1f263803f18a674f200d86e07954286dfe33cad245fe1be9")[..]
-        );
+    fn init_logging() {
+        let _ = env_logger::builder().is_test(true).try_init();
     }
 
     #[test]
-    fn sha512_256_c() {
-        let data = b"Zondax";
-        let result = [0u8; 32];
+    fn get_public_key() {
+        init_logging();
 
-        rs_sha512_256(data.as_ptr(), data.len(), result.as_ptr(), result.len());
+        let trng = Trng;
+        let secret: SecretKey = SecretKey::generate_with(trng);
+        let public: PublicKey = secret.to_public();
 
-        assert_eq!(
-            result[..],
-            hex!("3d119a287af12a4a1f263803f18a674f200d86e07954286dfe33cad245fe1be9")[..]
-        );
+        debug!("Signing test");
+        debug!("{:?}", secret);
+        debug!("{:?}", public);
+
+        assert!(public == public)
+    }
+
+    #[test]
+    fn get_public_key_c() {
+        init_logging();
+
+        let mut pk = [0u8; 32];
+
+        get_sr25519_pk(pk.as_mut_ptr());
+
+        debug!("{:?}", pk);
     }
 }
