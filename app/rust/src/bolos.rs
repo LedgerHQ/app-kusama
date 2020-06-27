@@ -6,12 +6,12 @@ extern "C" {
 }
 
 #[cfg(test)]
-fn external_rng(dest: &mut [u8]) {
+fn external_rng(_: &[u8]) {
     // TODO:
 }
 
 #[cfg(not(test))]
-fn external_rng(dest: &mut [u8]) {
+fn external_rng(_: &[u8]) {
     // TODO:
 }
 
