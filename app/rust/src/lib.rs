@@ -16,10 +16,7 @@ use core::convert::TryInto;
 use core::mem;
 #[cfg(not(test))]
 use core::panic::PanicInfo;
-use core::mem;
-use core::convert::TryInto;
-use crate::bolos::Trng;
-use schnorrkel::{SecretKey, PublicKey};
+use schnorrkel::{PublicKey, SecretKey};
 
 #[cfg(not(test))]
 #[panic_handler]
@@ -27,22 +24,36 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
-#[no_mangle]
-pub extern "C" fn get_sr25519_pk(pk_ptr: *mut u8) {
-    let pkd: &mut [u8; 32] = unsafe { mem::transmute::<*const u8, &mut [u8; 32]>(pk_ptr) };
+// #[no_mangle]
+// pub extern "C" fn get_sr25519_pk(sk_ed25519_expanded_ptr: *const u8, pk_ptr: *mut u8) {
+//     let pkd: &mut [u8; 32] = unsafe { mem::transmute::<*const u8, &mut [u8; 32]>(pk_ptr) };
+//     let sk_ed25519_expanded: &[u8; 64] = unsafe { mem::transmute::<*const u8, &[u8; 64]>(sk_ed25519_expanded_ptr) };
+//
+//     let secret: SecretKey = SecretKey::from_ed25519_bytes(&sk_ed25519_expanded[..]).unwrap();
+//
+//     // 192 bytes
+//     let public: PublicKey = secret.to_public();
+//     pkd.copy_from_slice(&public.to_bytes())
+// }
 
-    let trng = Trng;
-    let secret: SecretKey = SecretKey::generate_with(trng);
+#[no_mangle]
+pub extern "C" fn get_sr25519_pk(sk_ed25519_expanded_ptr: *const u8, pk_ptr: *mut u8) {
+    let sk_ed25519_expanded: &[u8; 64] =
+        unsafe { mem::transmute::<*const u8, &[u8; 64]>(sk_ed25519_expanded_ptr) };
+
+    let secret: SecretKey = SecretKey::from_ed25519_bytes(&sk_ed25519_expanded[..]).unwrap();
+
+    // 192 bytes
     let public: PublicKey = secret.to_public();
 
+    let pkd: &mut [u8; 32] = unsafe { mem::transmute::<*const u8, &mut [u8; 32]>(pk_ptr) };
     pkd.copy_from_slice(&public.to_bytes())
 }
 
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use crate::bolos::Trng;
-    use schnorrkel::{Keypair, Signature, SecretKey, PublicKey};
+    use schnorrkel::{Keypair, PublicKey, SecretKey, Signature};
 
     use log::debug;
 
@@ -51,27 +62,13 @@ mod tests {
     }
 
     #[test]
-    fn get_public_key() {
-        init_logging();
-
-        let trng = Trng;
-        let secret: SecretKey = SecretKey::generate_with(trng);
-        let public: PublicKey = secret.to_public();
-
-        debug!("Signing test");
-        debug!("{:?}", secret);
-        debug!("{:?}", public);
-
-        assert!(public == public)
-    }
-
-    #[test]
     fn get_public_key_c() {
         init_logging();
 
+        let mut sk_ed25519_expanded = [0u8; 64];
         let mut pk = [0u8; 32];
 
-        get_sr25519_pk(pk.as_mut_ptr());
+        get_sr25519_pk(sk_ed25519_expanded.as_ptr(), pk.as_mut_ptr());
 
         debug!("{:?}", pk);
     }

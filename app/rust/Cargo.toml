@@ -16,6 +16,7 @@ rand={ version = "0.7.3", default-features = false}
 version = "0.9.1"
 default-features = false
 features=["u32_backend"]
+path = "../../deps/schnorrkel"
 
 [dev-dependencies]
 hex-literal = "0.2.1"
