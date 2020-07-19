@@ -26,6 +26,7 @@ extern crate core;
 
 fn debug(_msg: &str) {}
 
+use crate::bolos::c_zemu_log_stack;
 use core::convert::TryInto;
 use core::mem;
 use core::panic::PanicInfo;
@@ -40,11 +41,17 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub extern "C" fn get_sr25519_pk(sk_ed25519_expanded_ptr: *const u8, pk_sr25519_ptr: *mut u8) {
+    c_zemu_log_stack(b"get_sr25519_pk\x00".as_ref());
+
     let sk_ed25519_expanded = unsafe { from_raw_parts(sk_ed25519_expanded_ptr as *const u8, 64) };
     let pk_sr25519 = unsafe { from_raw_parts_mut(pk_sr25519_ptr, 32) };
 
     let secret: SecretKey = SecretKey::from_ed25519_bytes(&sk_ed25519_expanded[..]).unwrap();
+    c_zemu_log_stack(b"from_ed25519_bytes\x00".as_ref());
+
     let public: PublicKey = secret.to_public();
+    c_zemu_log_stack(b"secret.to_public\x00".as_ref());
+
     pk_sr25519.copy_from_slice(&public.to_bytes())
 }
 

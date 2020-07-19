@@ -49,6 +49,7 @@ void handle_stack_overflow() {
 void check_app_canary() {
 #if defined (TARGET_NANOS) || defined(TARGET_NANOX)
     if (app_stack_canary != APP_STACK_CANARY_MAGIC) handle_stack_overflow();
+    CHECK_APP_CANARY()
 #endif
 }
 
@@ -64,6 +65,7 @@ void zemu_log_stack(char *ctx) {
             (uint32_t)((void*)&p)+STACK_SHIFT - (uint32_t)&app_stack_canary,
             ctx);
     zemu_log(buf);
+    CHECK_APP_CANARY()
 #endif
 #endif
 }
