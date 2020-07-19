@@ -1,21 +1,35 @@
+/*******************************************************************************
+*   (c) 2020 Zondax GmbH
+*
+*  Licensed under the Apache License, Version 2.0 (the "License");
+*  you may not use this file except in compliance with the License.
+*  You may obtain a copy of the License at
+*
+*      http://www.apache.org/licenses/LICENSE-2.0
+*
+*  Unless required by applicable law or agreed to in writing, software
+*  distributed under the License is distributed on an "AS IS" BASIS,
+*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+*  See the License for the specific language governing permissions and
+*  limitations under the License.
+********************************************************************************/
 #![no_std]
 #![no_builtins]
 #![allow(dead_code, unused_imports)]
 
+mod bolos;
+
 #[cfg(test)]
 #[macro_use]
 extern crate hex_literal;
-
-mod bolos;
-
 extern crate core;
 
 fn debug(_msg: &str) {}
 
 use core::convert::TryInto;
 use core::mem;
-#[cfg(not(test))]
 use core::panic::PanicInfo;
+use core::slice::{from_raw_parts, from_raw_parts_mut};
 use schnorrkel::{PublicKey, SecretKey};
 
 #[cfg(not(test))]
@@ -24,38 +38,21 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
-// #[no_mangle]
-// pub extern "C" fn get_sr25519_pk(sk_ed25519_expanded_ptr: *const u8, pk_ptr: *mut u8) {
-//     let pkd: &mut [u8; 32] = unsafe { mem::transmute::<*const u8, &mut [u8; 32]>(pk_ptr) };
-//     let sk_ed25519_expanded: &[u8; 64] = unsafe { mem::transmute::<*const u8, &[u8; 64]>(sk_ed25519_expanded_ptr) };
-//
-//     let secret: SecretKey = SecretKey::from_ed25519_bytes(&sk_ed25519_expanded[..]).unwrap();
-//
-//     // 192 bytes
-//     let public: PublicKey = secret.to_public();
-//     pkd.copy_from_slice(&public.to_bytes())
-// }
-
 #[no_mangle]
-pub extern "C" fn get_sr25519_pk(sk_ed25519_expanded_ptr: *const u8, pk_ptr: *mut u8) {
-    let sk_ed25519_expanded: &[u8; 64] =
-        unsafe { mem::transmute::<*const u8, &[u8; 64]>(sk_ed25519_expanded_ptr) };
+pub extern "C" fn get_sr25519_pk(sk_ed25519_expanded_ptr: *const u8, pk_sr25519_ptr: *mut u8) {
+    let sk_ed25519_expanded = unsafe { from_raw_parts(sk_ed25519_expanded_ptr as *const u8, 64) };
+    let pk_sr25519 = unsafe { from_raw_parts_mut(pk_sr25519_ptr, 32) };
 
     let secret: SecretKey = SecretKey::from_ed25519_bytes(&sk_ed25519_expanded[..]).unwrap();
-
-    // 192 bytes
     let public: PublicKey = secret.to_public();
-
-    let pkd: &mut [u8; 32] = unsafe { mem::transmute::<*const u8, &mut [u8; 32]>(pk_ptr) };
-    pkd.copy_from_slice(&public.to_bytes())
+    pk_sr25519.copy_from_slice(&public.to_bytes())
 }
 
 #[cfg(test)]
 mod tests {
     use crate::*;
+    use log::{debug, info};
     use schnorrkel::{Keypair, PublicKey, SecretKey, Signature};
-
-    use log::debug;
 
     fn init_logging() {
         let _ = env_logger::builder().is_test(true).try_init();
@@ -65,11 +62,19 @@ mod tests {
     fn get_public_key_c() {
         init_logging();
 
-        let mut sk_ed25519_expanded = [0u8; 64];
-        let mut pk = [0u8; 32];
+        let sk_ed25519_expanded = [
+            0x00, 0x01, 0x02, 0x03, 04, 0x5, 0x06, 0x07, 0x00, 0x01, 0x02, 0x03, 04, 0x5, 0x06,
+            0x07, 0x00, 0x01, 0x02, 0x03, 04, 0x5, 0x06, 0x07, 0x00, 0x01, 0x02, 0x03, 04, 0x5,
+            0x06, 0x07, 0x00, 0x01, 0x02, 0x03, 04, 0x5, 0x06, 0x07, 0x00, 0x01, 0x02, 0x03, 04,
+            0x5, 0x06, 0x07, 0x00, 0x01, 0x02, 0x03, 04, 0x5, 0x06, 0x07, 0x00, 0x01, 0x02, 0x03,
+            04, 0x5, 0x06, 0x07,
+        ];
+        let pk_expected = "b65abc66a8fdeac1197d03daa6c3791d0c0799a52db6b7127b1cd12d46e34364";
 
+        let mut pk = [0u8; 32];
         get_sr25519_pk(sk_ed25519_expanded.as_ptr(), pk.as_mut_ptr());
 
-        debug!("{:?}", pk);
+        info!("{:?}", hex::encode(pk));
+        assert_eq!(hex::encode(pk), pk_expected);
     }
 }
