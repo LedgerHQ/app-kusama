@@ -10,28 +10,6 @@ on:
 
 jobs:
   analyse:
-    name: Analyse
-    strategy:
-      matrix:
-        sdk: ["$NANOS_SDK", "$NANOX_SDK", "$NANOSP_SDK", "$STAX_SDK"]
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/ledgerhq/ledger-app-builder/ledger-app-builder-legacy:latest
-
-    steps:
-      - name: Clone
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v2
-        with:
-          languages: cpp
-          queries: security-and-quality
-
-      - name: Build
-        run: |
-          make -j BOLOS_SDK=${{ matrix.sdk }}
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v2
+    name: Call Ledger CodeQL analysis
+    uses: LedgerHQ/ledger-app-workflows/.github/workflows/reusable_codeql_checks.yml@v1
+    secrets: inherit
